@@ -6,7 +6,7 @@
 -- E1 : Choose a patch planet
 -- E2 : Create
 --
--- v1.0.0 Mark Eats
+-- v1.0.1 Mark Eats
 --
 
 local MusicUtil = require "musicutil"
