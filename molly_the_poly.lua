@@ -3,14 +3,14 @@
 -- MIDI controlled classic
 -- polysynth with patch creator.
 --
--- ENC1 : Choose a patch planet
--- ENC2 : Create
+-- E1 : Choose a patch planet
+-- E2 : Create
 --
 -- v1.0.0 Mark Eats
 --
 
-local MusicUtil = require "mark_eats/musicutil"
-local MollyThePoly = require "mark_eats/mollythepoly"
+local MusicUtil = require "musicutil"
+local MollyThePoly = require "mollythepoly"
 
 engine.name = "MollyThePoly"
 
@@ -105,13 +105,14 @@ end
 function enc(n, delta)
   
   if n == 2 then
-    selected_planet = util.clamp(selected_planet + util.clamp(-1, 1, delta) * 0.1, 1, #planets)
+    selected_planet = util.clamp(selected_planet + util.clamp(-1, 1, delta) * 0.15, 1, #planets)
     selected_planet_id = util.round(selected_planet)
-        
+    
   elseif n == 3 then
     
     if not sun_cool_down then
-      sun_mod_radius = util.clamp(sun_mod_radius + delta * util.linlin(0, 32, 0.3, 0.8, sun_mod_radius), SUN_BASE_RADIUS * - 0.5, planets[selected_planet_id].orbit + 2)
+      delta = delta * util.linlin(0, 28, util.linlin(1, 3, 0.5, 1.2, selected_planet_id), 1.3, sun_mod_radius)
+      sun_mod_radius = util.clamp(sun_mod_radius + delta, SUN_BASE_RADIUS * - 0.5, planets[selected_planet_id].orbit + 2)
     end
   
   end
@@ -216,7 +217,7 @@ function init()
   -- Add params
   
   params:add{type = "number", id = "midi_device", name = "MIDI Device", min = 1, max = 4, default = 1, action = function(value)
-    midi_in_device:reconnect(value)
+    midi_in_device = midi.connect(value)
   end}
   
   local channels = {"All"}
@@ -237,8 +238,8 @@ function init()
     orbit = orbit + 8
   end
   
-  local screen_refresh_metro = metro.alloc()
-  screen_refresh_metro.callback = function()
+  local screen_refresh_metro = metro.init()
+  screen_refresh_metro.event = function()
     solar_system_update()
     if screen_dirty then
       screen_dirty = false
