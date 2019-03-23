@@ -10,7 +10,7 @@
 --
 
 local MusicUtil = require "musicutil"
-local MollyThePoly = require "mollythepoly"
+local MollyThePoly = require "molly_the_poly/lib/molly_the_poly_engine"
 
 engine.name = "MollyThePoly"
 
@@ -111,7 +111,15 @@ function enc(n, delta)
   elseif n == 3 then
     
     if not sun_cool_down then
-      delta = delta * util.linlin(0, 28, util.linlin(1, 3, 0.5, 1.2, selected_planet_id), 1.3, sun_mod_radius)
+      if delta < 0 then
+        if sun_mod_radius > 1 then
+          delta = 0
+        else
+          delta = delta * 0.1
+        end
+      else
+        delta = delta * util.linlin(0, 28, util.linlin(1, 3, 0.5, 1.3, selected_planet_id), 1.6, sun_mod_radius)
+      end
       sun_mod_radius = util.clamp(sun_mod_radius + delta, SUN_BASE_RADIUS * - 0.5, planets[selected_planet_id].orbit + 2)
     end
   
@@ -178,7 +186,7 @@ local function solar_system_update()
     if sun_cool_down then
       sun_mod_radius = sun_mod_radius * 0.5
     elseif sun_mod_radius > 0 then
-      sun_mod_radius = sun_mod_radius * 0.85
+      sun_mod_radius = sun_mod_radius * 0.9
     elseif sun_mod_radius < 0 then
       sun_mod_radius = sun_mod_radius + 0.15
     end
