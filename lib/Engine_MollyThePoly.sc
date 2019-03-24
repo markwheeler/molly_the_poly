@@ -4,7 +4,7 @@
 
 Engine_MollyThePoly : CroneEngine {
 
-	classvar maxNumVoices = 12;
+	classvar maxNumVoices = 10;
 	var voiceGroup;
 	var voiceList;
 	var lfo;
