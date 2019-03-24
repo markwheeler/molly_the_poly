@@ -88,15 +88,27 @@ local function note_kill_all()
   remove_all_stars()
 end
 
-local function set_key_pressure(note_num, pressure)
+local function set_pressure(note_num, pressure)
   engine.pressure(note_num, pressure)
 end
 
-local function set_channel_pressure(pressure)
+local function set_pressure_all(pressure)
   engine.pressureAll(pressure)
 end
 
-local function set_pitch_bend(bend_st)
+local function set_timbre(note_num, timbre)
+  engine.timbre(note_num, timbre)
+end
+
+local function set_timbre_all(timbre)
+  engine.timbreAll(timbre)
+end
+
+local function set_pitch_bend(note_num, bend_st)
+  engine.pitchBend(note_num, MusicUtil.interval_to_ratio(bend_st))
+end
+
+local function set_pitch_bend_all(bend_st)
   engine.pitchBendAll(MusicUtil.interval_to_ratio(bend_st))
 end
 
@@ -140,8 +152,6 @@ end
 -- MIDI input
 local function midi_event(data)
   
-  if #data == 0 then return end
-  
   local msg = midi.to_msg(data)
   local channel_param = params:get("midi_channel")
   
@@ -157,17 +167,24 @@ local function midi_event(data)
       
     -- Key pressure
     elseif msg.type == "key_pressure" then
-      set_key_pressure(msg.note, msg.val / 127)
+      set_pressure(msg.note, msg.val / 127)
       
     -- Channel pressure
     elseif msg.type == "channel_pressure" then
-      set_channel_pressure(msg.val / 127)
+      set_pressure_all(msg.val / 127)
       
     -- Pitch bend
     elseif msg.type == "pitchbend" then
       local bend_st = (util.round(msg.val / 2)) / 8192 * 2 -1 -- Convert to -1 to 1
       local bend_range = params:get("bend_range")
-      set_pitch_bend(bend_st * bend_range)
+      set_pitch_bend_all(bend_st * bend_range)
+      
+    -- CC
+    elseif msg.type == "cc" then
+      -- Mod wheel
+      if msg.cc == 1 then
+        set_timbre_all(msg.val / 127)
+      end
       
     end
   
@@ -225,7 +242,9 @@ function init()
   -- Add params
   
   params:add{type = "number", id = "midi_device", name = "MIDI Device", min = 1, max = 4, default = 1, action = function(value)
+    midi_in_device.event = nil
     midi_in_device = midi.connect(value)
+    midi_in_device.event = midi_event
   end}
   
   local channels = {"All"}

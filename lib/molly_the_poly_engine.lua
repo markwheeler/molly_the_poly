@@ -61,12 +61,13 @@ local function format_ratio_to_one(param)
 end
 
 local function format_fade(param)
-  local secs = util.round(param:get(), 0.01)
+  local secs = param:get()
   local suffix = " in"
   if secs < 0 then
     secs = secs - specs.LFO_FADE.minval
     suffix = " out"
   end
+  secs = util.round(secs, 0.01)
   return math.abs(secs) .. " s" .. suffix
 end
 
