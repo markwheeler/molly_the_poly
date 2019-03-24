@@ -1,6 +1,6 @@
 // CroneEngine_MollyThePoly
-//
-// v1.0.1 Mark Eats
+// Classic polysynth with a Juno-6 voice structure, the extra modulation of a Jupiter-8 and CS-80 inspired ring modulation.
+// v1.0.2 Mark Eats
 
 Engine_MollyThePoly : CroneEngine {
 
@@ -70,7 +70,7 @@ Engine_MollyThePoly : CroneEngine {
 			lfoFade, env1Attack, env1Decay, env1Sustain, env1Release, env2Attack, env2Decay, env2Sustain, env2Release,
 			ampMod, ringModFade, ringModMix;
 			var i_nyquist = SampleRate.ir * 0.5, i_cFreq = 48.midicps, signal, killEnvelope, controlLag = 0.005,
-			lfo, ringMod, oscArray, freqModRatio, mainOscDriftLfo, subOscDriftLfo, filterCutoffRatio,
+			lfo, ringMod, oscArray, freqModRatio, mainOscDriftLfo, subOscDriftLfo, filterCutoffRatio, filterCutoffModRatio,
 			envelope1, envelope2;
 
 			// LFO in
@@ -105,7 +105,13 @@ Engine_MollyThePoly : CroneEngine {
 			envelope2 = EnvGen.ar(envelope: Env.adsr( env2Attack, env2Decay, env2Sustain, env2Release), gate: gate, doneAction: Done.freeSelf);
 
 			// Main osc
-			freqModRatio = ((lfo * 12 * freqModLfo) + (envelope1 * 12 * freqModEnv)).midiratio;
+
+			// Note: Would be ideal to do this exponentially but its a surprisingly big perf hit
+			freqModRatio = ((lfo * freqModLfo) + (envelope1 * freqModEnv));
+			freqModRatio = Select.ar(freqModRatio >= 0, [
+				freqModRatio.linlin(-2, 0, 0.25, 1),
+				freqModRatio.linlin(0, 2, 1, 4)
+			]);
 			freq = (freq * freqModRatio).clip(20, i_nyquist);
 
 			mainOscDriftLfo = LFNoise2.kr(freq: 0.1, mul: 0.001, add: 1);
@@ -142,8 +148,14 @@ Engine_MollyThePoly : CroneEngine {
 			filterCutoffRatio = filterCutoffRatio / i_cFreq;
 			lpFilterCutoff = lpFilterCutoff * (1 + (pressure * 0.55));
 			lpFilterCutoff = lpFilterCutoff * filterCutoffRatio;
-			lpFilterCutoff = lpFilterCutoff * ((48 * lfo * lpFilterCutoffModLfo) + (96 * Select.ar(lpFilterCutoffEnvSelect, [envelope1, envelope2]) * lpFilterCutoffModEnv)).midiratio;
-			lpFilterCutoff = lpFilterCutoff.clip(20, 20000);
+
+			// Note: Again, would prefer this to be exponential
+			filterCutoffModRatio = ((lfo * lpFilterCutoffModLfo) + ((Select.ar(lpFilterCutoffEnvSelect, [envelope1, envelope2]) * lpFilterCutoffModEnv) * 2));
+			filterCutoffModRatio = Select.ar(filterCutoffModRatio >= 0, [
+				filterCutoffModRatio.linlin(-3, 0, 0.08333333333, 1),
+				filterCutoffModRatio.linlin(0, 3, 1, 12)
+			]);
+			lpFilterCutoff = (lpFilterCutoff * filterCutoffModRatio).clip(20, 20000);
 
 			signal = RLPF.ar(in: signal, freq: lpFilterCutoff, rq: lpFilterResonance.linexp(0, 1, 1, 0.05));
 			signal = SelectX.ar(lpFilterType, [signal, RLPF.ar(in: signal, freq: lpFilterCutoff, rq: lpFilterResonance.linexp(0, 1, 1, 0.32))]);
