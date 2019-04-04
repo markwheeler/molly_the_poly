@@ -1,5 +1,5 @@
 // CroneEngine_MollyThePoly
-// Classic polysynth with a Juno-6 voice structure, the extra modulation of a Jupiter-8 and CS-80 inspired ring modulation.
+// Classic polysynth with a Juno-6 voice structure, the extra modulation of a Jupiter-8, and CS-80 inspired ring modulation.
 // v1.0.2 Mark Eats
 
 Engine_MollyThePoly : CroneEngine {

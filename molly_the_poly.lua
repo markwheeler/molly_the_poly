@@ -1,12 +1,12 @@
 -- Molly the Poly
+-- 1.0.1 @markeats
+-- llllllll.co/t/21090
 --
 -- MIDI controlled classic
 -- polysynth with patch creator.
 --
 -- E1 : Choose a patch planet
--- E2 : Create
---
--- v1.0.1 Mark Eats
+-- E2 : Create a sound
 --
 
 local MusicUtil = require "musicutil"
