@@ -1,6 +1,6 @@
 -- Molly the Poly
 -- 1.0.1 @markeats
--- llllllll.co/t/21090
+-- llllllll.co/t/molly-the-poly/
 --
 -- MIDI controlled classic
 -- polysynth with patch creator.
