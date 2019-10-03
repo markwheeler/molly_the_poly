@@ -18,6 +18,7 @@ local SCREEN_FRAMERATE = 15
 local screen_dirty = true
 
 local midi_in_device
+local g
 
 local SUN_BASE_RADIUS = 5
 local sun_mod_radius = 0
@@ -149,6 +150,22 @@ function key(n, z)
   end
 end
 
+-- Grid input
+local function grid_event(x, y, z)
+  local note = ((7-y)*5) + x
+  local hz = 55*2^(note/12)
+  local note_num = MusicUtil.freq_to_note_num(hz)
+
+  if z == 1 then
+    note_on(note_num, 100)
+    g:led(x, y,15)
+  else
+    g:led(x, y,0)
+    note_off(note_num)
+  end
+  g:refresh()
+end
+
 -- MIDI input
 local function midi_event(data)
   
@@ -239,6 +256,10 @@ function init()
   midi_in_device = midi.connect(1)
   midi_in_device.event = midi_event
   
+
+  g = grid.connect()
+  g.key = grid_event
+
   -- Add params
   
   params:add{type = "number", id = "midi_device", name = "MIDI Device", min = 1, max = 4, default = 1, action = function(value)
