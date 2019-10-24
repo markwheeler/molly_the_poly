@@ -164,6 +164,17 @@ local function grid_event(x, y, z)
     note_off(note_num)
   end
   g:refresh()
+local function grid_key(x, y, z)
+  local note_num = util.clamp(((7 - y) * 5) + x + 33, 0, 127)
+  
+  if z == 1 then
+    note_on(note_num, 0.8)
+    grid_device:led(x, y, 15)
+  else
+    note_off(note_num)
+    grid_device:led(x, y, 0)
+  end
+  grid_device:refresh()
 end
 
 -- MIDI input
