@@ -269,7 +269,7 @@ function init()
   
 
   g = grid.connect()
-  g.key = grid_event
+  grid_device.key = grid_key
 
   -- Add params
   
