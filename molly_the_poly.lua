@@ -18,7 +18,7 @@ local SCREEN_FRAMERATE = 15
 local screen_dirty = true
 
 local midi_in_device
-local g
+local grid_device
 
 local SUN_BASE_RADIUS = 5
 local sun_mod_radius = 0
