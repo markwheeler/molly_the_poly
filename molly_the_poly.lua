@@ -268,7 +268,7 @@ function init()
   midi_in_device.event = midi_event
   
 
-  g = grid.connect()
+  grid_device = grid.connect(1)
   grid_device.key = grid_key
 
   -- Add params
