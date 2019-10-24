@@ -151,19 +151,6 @@ function key(n, z)
 end
 
 -- Grid input
-local function grid_event(x, y, z)
-  local note = ((7-y)*5) + x
-  local hz = 55*2^(note/12)
-  local note_num = MusicUtil.freq_to_note_num(hz)
-
-  if z == 1 then
-    note_on(note_num, 100)
-    g:led(x, y,15)
-  else
-    g:led(x, y,0)
-    note_off(note_num)
-  end
-  g:refresh()
 local function grid_key(x, y, z)
   local note_num = util.clamp(((7 - y) * 5) + x + 33, 0, 127)
   
