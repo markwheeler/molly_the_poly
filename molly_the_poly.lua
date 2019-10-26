@@ -1,8 +1,8 @@
 -- Molly the Poly
--- 1.0.1 @markeats
+-- 1.1.0 @markeats
 -- llllllll.co/t/molly-the-poly/
 --
--- MIDI controlled classic
+-- MIDI or grid controlled classic
 -- polysynth with patch creator.
 --
 -- E1 : Choose a patch planet
@@ -150,20 +150,6 @@ function key(n, z)
   end
 end
 
--- Grid input
-local function grid_key(x, y, z)
-  local note_num = util.clamp(((7 - y) * 5) + x + 33, 0, 127)
-  
-  if z == 1 then
-    note_on(note_num, 0.8)
-    grid_device:led(x, y, 15)
-  else
-    note_off(note_num)
-    grid_device:led(x, y, 0)
-  end
-  grid_device:refresh()
-end
-
 -- MIDI input
 local function midi_event(data)
   
@@ -205,6 +191,20 @@ local function midi_event(data)
   
   end
   
+end
+
+-- Grid input
+local function grid_key(x, y, z)
+  local note_num = util.clamp(((7 - y) * 5) + x + 33, 0, 127)
+  
+  if z == 1 then
+    note_on(note_num, 0.8)
+    grid_device:led(x, y, 15)
+  else
+    note_off(note_num)
+    grid_device:led(x, y, 0)
+  end
+  grid_device:refresh()
 end
 
 
@@ -254,10 +254,9 @@ function init()
   midi_in_device = midi.connect(1)
   midi_in_device.event = midi_event
   
-
   grid_device = grid.connect(1)
   grid_device.key = grid_key
-
+  
   -- Add params
   
   params:add{type = "number", id = "midi_device", name = "MIDI Device", min = 1, max = 4, default = 1, action = function(value)
@@ -271,6 +270,16 @@ function init()
   params:add{type = "option", id = "midi_channel", name = "MIDI Channel", options = channels}
 
   params:add{type = "number", id = "bend_range", name = "Pitch Bend Range", min = 1, max = 48, default = 2}
+  
+  params:add{type = "number", id = "grid_device", name = "Grid Device", min = 1, max = 4, default = 1,
+    action = function(value)
+      grid_device:all(0)
+      grid_device:refresh()
+      grid_device.key = nil
+      grid_device = grid.connect(value)
+      grid_device.key = grid_key
+      grid_dirty = true
+    end}
   
   params:add_separator()
   
