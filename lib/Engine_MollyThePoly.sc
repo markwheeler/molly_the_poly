@@ -1,6 +1,6 @@
 // CroneEngine_MollyThePoly
 // Classic polysynth with a Juno-6 voice structure, the extra modulation of a Jupiter-8, and CS-80 inspired ring modulation.
-// v1.0.2 Mark Eats
+// v1.2.0 Mark Eats
 
 Engine_MollyThePoly : CroneEngine {
 
@@ -45,8 +45,6 @@ Engine_MollyThePoly : CroneEngine {
 	var env2Sustain = 0.5;
 	var env2Release = 0.5;
 	var ampMod = 0;
-	var channelPressure = 0;
-	var timbre = 0;
 	var ringModFade = 0;
 	var ringModMix = 0;
 	var chorusMix = 0;
@@ -67,7 +65,7 @@ Engine_MollyThePoly : CroneEngine {
 
 		// Synth voice
 		SynthDef(\voice, {
-			arg out, lfoIn, ringModIn, freq = 440, pitchBendRatio = 1, gate = 0, killGate = 1, vel = 1, pressure, timbre,
+			arg out, lfoIn, ringModIn, freq = 440, pitchBendRatio = 1, gate = 0, killGate = 1, vel = 1,
 			oscWaveShape, pwMod, pwModSource, freqModLfo, freqModEnv, lastFreq, glide, mainOscLevel, subOscLevel, subOscDetune, noiseLevel,
 			hpFilterCutoff, lpFilterCutoff, lpFilterResonance, lpFilterType, lpFilterCutoffEnvSelect, lpFilterCutoffModEnv, lpFilterCutoffModLfo, lpFilterTracking,
 			lfoFade, env1Attack, env1Decay, env1Sustain, env1Release, env2Attack, env2Decay, env2Sustain, env2Release,
@@ -84,7 +82,6 @@ Engine_MollyThePoly : CroneEngine {
 
 			freq = XLine.kr(start: lastFreq, end: freq, dur: glide + 0.001);
 			freq = Lag.kr(freq * pitchBendRatio, 0.005);
-			pressure = Lag.kr(pressure, controlLag);
 
 			pwMod = Lag.kr(pwMod, controlLag);
 			mainOscLevel = Lag.kr(mainOscLevel, controlLag);
@@ -97,7 +94,7 @@ Engine_MollyThePoly : CroneEngine {
 			lpFilterResonance = Lag.kr(lpFilterResonance, controlLag);
 			lpFilterType = Lag.kr(lpFilterType, 0.01);
 
-			ringModMix = Lag.kr((ringModMix + timbre).clip, controlLag);
+			ringModMix = Lag.kr(ringModMix, controlLag);
 
 			// Envelopes
 			killGate = killGate + Impulse.kr(0); // Make sure doneAction fires
@@ -148,7 +145,6 @@ Engine_MollyThePoly : CroneEngine {
 				i_cFreq - ((i_cFreq - freq) * lpFilterTracking)
 			]);
 			filterCutoffRatio = filterCutoffRatio / i_cFreq;
-			lpFilterCutoff = lpFilterCutoff * (1 + (pressure * 0.55));
 			lpFilterCutoff = lpFilterCutoff * filterCutoffRatio;
 
 			// Note: Again, would prefer this to be exponential
@@ -165,8 +161,6 @@ Engine_MollyThePoly : CroneEngine {
 			// Amp
 			signal = signal * envelope2 * killEnvelope;
 			signal = signal * vel * lfo.range(1 - ampMod, 1);
-			signal = signal * (1 + (pressure * 1.15));
-
 
 			// Ring mod
 			signal = SelectX.ar(ringModMix * 0.5, [signal, signal * ringMod]);
@@ -245,7 +239,7 @@ Engine_MollyThePoly : CroneEngine {
 		// noteOn(id, freq, vel)
 		this.addCommand(\noteOn, "iff", { arg msg;
 
-			var id = msg[1], freq = msg[2], vel = msg[3];
+			var id = msg[1], freq = msg[2], vel = msg[3] ?? 1;
 			var voiceToRemove, newVoice;
 
 			// Remove voice if ID matches or there are too many
@@ -276,8 +270,6 @@ Engine_MollyThePoly : CroneEngine {
 					\pitchBendRatio, pitchBendRatio,
 					\gate, 1,
 					\vel, vel.linlin(0, 1, 0.3, 1),
-					\pressure, channelPressure,
-					\timbre, timbre,
 					\oscWaveShape, oscWaveShape,
 					\pwMod, pwMod,
 					\pwModSource, pwModSource,
@@ -360,34 +352,6 @@ Engine_MollyThePoly : CroneEngine {
 		this.addCommand(\pitchBendAll, "f", { arg msg;
 			pitchBendRatio = msg[1];
 			voiceGroup.set(\pitchBendRatio, pitchBendRatio);
-		});
-
-		// pressure(id, pressure)
-		this.addCommand(\pressure, "if", { arg msg;
-			var voice = voiceList.detect{arg v; v.id == msg[1]};
-			if(voice.notNil, {
-				voice.theSynth.set(\pressure, msg[2]);
-			});
-		});
-
-		// pressureAll(pressure)
-		this.addCommand(\pressureAll, "f", { arg msg;
-			channelPressure = msg[1];
-			voiceGroup.set(\pressure, channelPressure);
-		});
-
-		// timbre(id, timbre)
-		this.addCommand(\timbre, "if", { arg msg;
-			var voice = voiceList.detect{arg v; v.id == msg[1]};
-			if(voice.notNil, {
-				voice.theSynth.set(\timbre, msg[2]);
-			});
-		});
-
-		// timbreAll(timbre)
-		this.addCommand(\timbreAll, "f", { arg msg;
-			timbre = msg[1];
-			voiceGroup.set(\timbre, timbre);
 		});
 
 		this.addCommand(\oscWaveShape, "i", { arg msg;

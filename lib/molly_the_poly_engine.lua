@@ -2,7 +2,7 @@
 -- Engine params and functions.
 --
 -- @module MollyThePolyEngine
--- @release v1.0.1
+-- @release v1.2.0
 -- @author Mark Eats
 
 local ControlSpec = require "controlspec"

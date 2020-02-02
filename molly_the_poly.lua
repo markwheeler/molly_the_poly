@@ -1,5 +1,5 @@
 -- Molly the Poly
--- 1.1.0 @markeats
+-- 1.2.0 @markeats
 -- llllllll.co/t/molly-the-poly/
 --
 -- MIDI or grid controlled classic
@@ -90,19 +90,23 @@ local function note_kill_all()
 end
 
 local function set_pressure(note_num, pressure)
-  engine.pressure(note_num, pressure)
+  -- TODO
+  -- engine.pressure(note_num, pressure)
 end
 
 local function set_pressure_all(pressure)
-  engine.pressureAll(pressure)
+  -- TODO
+  -- engine.pressureAll(pressure)
 end
 
 local function set_timbre(note_num, timbre)
-  engine.timbre(note_num, timbre)
+  -- TODO
+  -- engine.timbre(note_num, timbre)
 end
 
 local function set_timbre_all(timbre)
-  engine.timbreAll(timbre)
+  -- TODO
+  -- engine.timbreAll(timbre)
 end
 
 local function set_pitch_bend(note_num, bend_st)
@@ -166,15 +170,15 @@ local function midi_event(data)
     elseif msg.type == "note_on" then
       note_on(msg.note, msg.vel / 127)
       
-    -- Key pressure
+    -- Pressure
     elseif msg.type == "key_pressure" then
       set_pressure(msg.note, msg.val / 127)
       
-    -- Channel pressure
+    -- Pressure all
     elseif msg.type == "channel_pressure" then
       set_pressure_all(msg.val / 127)
       
-    -- Pitch bend
+    -- Pitch bend all
     elseif msg.type == "pitchbend" then
       local bend_st = (util.round(msg.val / 2)) / 8192 * 2 -1 -- Convert to -1 to 1
       local bend_range = params:get("bend_range")
@@ -182,9 +186,21 @@ local function midi_event(data)
       
     -- CC
     elseif msg.type == "cc" then
-      -- Mod wheel
+      
+      -- Mod wheel / Timbre all
       if msg.cc == 1 then
         set_timbre_all(msg.val / 127)
+        
+      -- MPE X / Pitch bend
+      -- TODO input from MPE X axis
+      -- elseif msg.cc == ?? then
+        -- set_pitch_bend(msg.note, msg.val / 127)
+      
+      -- MPE Y / Timbre
+      -- TODO input from MPE Y axis
+      -- elseif msg.cc == ?? then
+        -- set_timbre(msg.note, msg.val / 127)
+        
       end
       
     end
