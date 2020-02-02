@@ -10,7 +10,7 @@
 --
 
 local MusicUtil = require "musicutil"
-local MollyThePoly = require "molly_the_poly/lib/molly_the_poly_engine"
+local MollyThePoly = include("lib/molly_the_poly_engine")
 
 engine.name = "MollyThePoly"
 
@@ -89,34 +89,6 @@ local function note_kill_all()
   remove_all_stars()
 end
 
-local function set_pressure(note_num, pressure)
-  -- TODO
-  -- engine.pressure(note_num, pressure)
-end
-
-local function set_pressure_all(pressure)
-  -- TODO
-  -- engine.pressureAll(pressure)
-end
-
-local function set_timbre(note_num, timbre)
-  -- TODO
-  -- engine.timbre(note_num, timbre)
-end
-
-local function set_timbre_all(timbre)
-  -- TODO
-  -- engine.timbreAll(timbre)
-end
-
-local function set_pitch_bend(note_num, bend_st)
-  engine.pitchBend(note_num, MusicUtil.interval_to_ratio(bend_st))
-end
-
-local function set_pitch_bend_all(bend_st)
-  engine.pitchBendAll(MusicUtil.interval_to_ratio(bend_st))
-end
-
 
 -- Encoder input
 function enc(n, delta)
@@ -165,41 +137,43 @@ local function midi_event(data)
     -- Note off
     if msg.type == "note_off" then
       note_off(msg.note)
+      print("note off", msg.note)
     
     -- Note on
     elseif msg.type == "note_on" then
       note_on(msg.note, msg.vel / 127)
+      print("note on", msg.note)
       
     -- Pressure
     elseif msg.type == "key_pressure" then
-      set_pressure(msg.note, msg.val / 127)
+      MollyThePoly.set_pressure(msg.note, msg.val / 127)
       
     -- Pressure all
     elseif msg.type == "channel_pressure" then
-      set_pressure_all(msg.val / 127)
+      MollyThePoly.set_pressure_all(msg.val / 127)
       
     -- Pitch bend all
     elseif msg.type == "pitchbend" then
       local bend_st = (util.round(msg.val / 2)) / 8192 * 2 -1 -- Convert to -1 to 1
-      local bend_range = params:get("bend_range")
-      set_pitch_bend_all(bend_st * bend_range)
+      MollyThePoly.set_pitch_bend_all(bend_st * params:get("bend_range"))
       
     -- CC
     elseif msg.type == "cc" then
       
       -- Mod wheel / Timbre all
       if msg.cc == 1 then
-        set_timbre_all(msg.val / 127)
+        MollyThePoly.set_timbre_all(msg.val / 127)
         
       -- MPE X / Pitch bend
       -- TODO input from MPE X axis
       -- elseif msg.cc == ?? then
-        -- set_pitch_bend(msg.note, msg.val / 127)
+        -- local bend_st = (util.round(msg.val / 2)) / 8192 * 2 -1 -- Convert to -1 to 1
+        -- MollyThePoly.set_pitch_bend(msg.note, bend_st * params:get("bend_range"))
       
       -- MPE Y / Timbre
       -- TODO input from MPE Y axis
       -- elseif msg.cc == ?? then
-        -- set_timbre(msg.note, msg.val / 127)
+        -- MollyThePoly.set_timbre(msg.note, msg.val / 127)
         
       end
       

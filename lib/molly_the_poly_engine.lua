@@ -7,11 +7,14 @@
 
 local ControlSpec = require "controlspec"
 local Formatters = require "formatters"
+local MusicUtil = require "musicutil"
 
 local MollyThePoly = {}
 
 local specs = {}
 local options = {}
+
+specs.MOD_TIMBRE_PRESSURE = ControlSpec.BIPOLAR
 
 options.OSC_WAVE_SHAPE = {"Triangle", "Saw", "Pulse"}
 specs.PW_MOD = ControlSpec.new(0, 1, "lin", 0, 0.2, "")
@@ -45,7 +48,7 @@ specs.ENV_SUSTAIN = ControlSpec.new(0, 1, "lin", 0, 0.5, "")
 specs.ENV_RELEASE = ControlSpec.new(0.002, 10, "lin", 0, 0.5, "s")
 
 specs.AMP = ControlSpec.new(0, 11, "lin", 0, 0.5, "")
-specs.AMP_MOD = ControlSpec.UNIPOLAR
+specs.AMP_MOD_LFO = ControlSpec.UNIPOLAR
 
 specs.RING_MOD_FREQ = ControlSpec.new(10, 300, "exp", 0, 50, "Hz")
 specs.RING_MOD_FADE = ControlSpec.new(-15, 15, "lin", 0, 0, "s")
@@ -73,60 +76,64 @@ end
 
 function MollyThePoly.add_params()
   
-  params:add{type = "option", id = "osc_wave_shape", name = "Osc Wave Shape", options = options.OSC_WAVE_SHAPE, default = 3, action = function(value) engine.oscWaveShape(value - 1) end}
-  params:add{type = "control", id = "pulse_width_mod", name = "Pulse Width Mod", controlspec = specs.PW_MOD, action = engine.pwMod}
-  params:add{type = "option", id = "pulse_width_mod_src", name = "Pulse Width Mod Src", options = options.PW_MOD_SRC, action = function(value) engine.pwModSource(value - 1) end}
-  params:add{type = "control", id = "freq_mod_lfo", name = "Frequency Mod (LFO)", controlspec = specs.FREQ_MOD_LFO, action = engine.freqModLfo}
-  params:add{type = "control", id = "freq_mod_env", name = "Frequency Mod (Env-1)", controlspec = specs.FREQ_MOD_ENV, action = engine.freqModEnv}
-  params:add{type = "control", id = "glide", name = "Glide", controlspec = specs.GLIDE, formatter = Formatters.format_secs, action = engine.glide}
+  params:add{type = "option", id = "osc_wave_shape", name = "Osc Wave Shape", options = options.OSC_WAVE_SHAPE, default = 3, action = function(value) engine.oscWaveShapeAll(value - 1) end}
+  params:add{type = "control", id = "pulse_width_mod", name = "Pulse Width Mod", controlspec = specs.PW_MOD, action = engine.pwModAll}
+  params:add{type = "option", id = "pulse_width_mod_src", name = "Pulse Width Mod Src", options = options.PW_MOD_SRC, action = function(value) engine.pwModSourceAll(value - 1) end}
+  params:add{type = "control", id = "freq_mod_lfo", name = "Frequency Mod (LFO)", controlspec = specs.FREQ_MOD_LFO, action = engine.freqModLfoAll}
+  params:add{type = "control", id = "freq_mod_env", name = "Frequency Mod (Env-1)", controlspec = specs.FREQ_MOD_ENV, action = engine.freqModEnvAll}
+  params:add{type = "control", id = "glide", name = "Glide", controlspec = specs.GLIDE, formatter = Formatters.format_secs, action = engine.glideAll}
   params:add_separator()
   
-  params:add{type = "control", id = "main_osc_level", name = "Main Osc Level", controlspec = specs.MAIN_OSC_LEVEL, action = engine.mainOscLevel}
-  params:add{type = "control", id = "sub_osc_level", name = "Sub Osc Level", controlspec = specs.SUB_OSC_LEVEL, action = engine.subOscLevel}
-  params:add{type = "control", id = "sub_osc_detune", name = "Sub Osc Detune", controlspec = specs.SUB_OSC_DETUNE, action = engine.subOscDetune}
-  params:add{type = "control", id = "noise_level", name = "Noise Level", controlspec = specs.NOISE_LEVEL, action = engine.noiseLevel}
+  params:add{type = "control", id = "main_osc_level", name = "Main Osc Level", controlspec = specs.MAIN_OSC_LEVEL, action = engine.mainOscLevelAll}
+  params:add{type = "control", id = "sub_osc_level", name = "Sub Osc Level", controlspec = specs.SUB_OSC_LEVEL, action = engine.subOscLevelAll}
+  params:add{type = "control", id = "sub_osc_detune", name = "Sub Osc Detune", controlspec = specs.SUB_OSC_DETUNE, action = engine.subOscDetuneAll}
+  params:add{type = "control", id = "noise_level", name = "Noise Level", controlspec = specs.NOISE_LEVEL, action = engine.noiseLevelAll}
   params:add_separator()
   
-  params:add{type = "control", id = "hp_filter_cutoff", name = "HP Filter Cutoff", controlspec = specs.HP_FILTER_CUTOFF, formatter = Formatters.format_freq, action = engine.hpFilterCutoff}
-  params:add{type = "control", id = "lp_filter_cutoff", name = "LP Filter Cutoff", controlspec = specs.LP_FILTER_CUTOFF, formatter = Formatters.format_freq, action = engine.lpFilterCutoff}
-  params:add{type = "control", id = "lp_filter_resonance", name = "LP Filter Resonance", controlspec = specs.LP_FILTER_RESONANCE, action = engine.lpFilterResonance}
-  params:add{type = "option", id = "lp_filter_type", name = "LP Filter Type", options = options.LP_FILTER_TYPE, default = 2, action = function(value) engine.lpFilterType(value - 1) end}
-  params:add{type = "option", id = "lp_filter_env", name = "LP Filter Env", options = options.LP_FILTER_ENV, action = function(value) engine.lpFilterCutoffEnvSelect(value - 1) end}
-  params:add{type = "control", id = "lp_filter_mod_env", name = "LP Filter Mod (Env)", controlspec = specs.LP_FILTER_CUTOFF_MOD_ENV, action = engine.lpFilterCutoffModEnv}
-  params:add{type = "control", id = "lp_filter_mod_lfo", name = "LP Filter Mod (LFO)", controlspec = specs.LP_FILTER_CUTOFF_MOD_LFO, action = engine.lpFilterCutoffModLfo}
-  params:add{type = "control", id = "lp_filter_tracking", name = "LP Filter Tracking", controlspec = specs.LP_FILTER_TRACKING, formatter = format_ratio_to_one, action = engine.lpFilterTracking}
+  params:add{type = "control", id = "hp_filter_cutoff", name = "HP Filter Cutoff", controlspec = specs.HP_FILTER_CUTOFF, formatter = Formatters.format_freq, action = engine.hpFilterCutoffAll}
+  params:add{type = "control", id = "lp_filter_cutoff", name = "LP Filter Cutoff", controlspec = specs.LP_FILTER_CUTOFF, formatter = Formatters.format_freq, action = engine.lpFilterCutoffAll}
+  params:add{type = "control", id = "lp_filter_resonance", name = "LP Filter Resonance", controlspec = specs.LP_FILTER_RESONANCE, action = engine.lpFilterResonanceAll}
+  params:add{type = "option", id = "lp_filter_type", name = "LP Filter Type", options = options.LP_FILTER_TYPE, default = 2, action = function(value) engine.lpFilterTypeAll(value - 1) end}
+  params:add{type = "option", id = "lp_filter_env", name = "LP Filter Env", options = options.LP_FILTER_ENV, action = function(value) engine.lpFilterCutoffEnvSelectAll(value - 1) end}
+  params:add{type = "control", id = "lp_filter_mod_env", name = "LP Filter Mod (Env)", controlspec = specs.LP_FILTER_CUTOFF_MOD_ENV, action = engine.lpFilterCutoffModEnvAll}
+  params:add{type = "control", id = "lp_filter_mod_lfo", name = "LP Filter Mod (LFO)", controlspec = specs.LP_FILTER_CUTOFF_MOD_LFO, action = engine.lpFilterCutoffModLfoAll}
+  params:add{type = "control", id = "lp_filter_tracking", name = "LP Filter Tracking", controlspec = specs.LP_FILTER_TRACKING, formatter = format_ratio_to_one, action = engine.lpFilterTrackingAll}
   params:add_separator()
   
   params:add{type = "control", id = "lfo_freq", name = "LFO Frequency", controlspec = specs.LFO_FREQ, formatter = Formatters.format_freq, action = engine.lfoFreq}
   params:add{type = "option", id = "lfo_wave_shape", name = "LFO Wave Shape", options = options.LFO_WAVE_SHAPE, action = function(value) engine.lfoWaveShape(value - 1) end}
   params:add{type = "control", id = "lfo_fade", name = "LFO Fade", controlspec = specs.LFO_FADE, formatter = format_fade, action = function(value)
     if value < 0 then value = specs.LFO_FADE.minval - 0.00001 + math.abs(value) end
-    engine.lfoFade(value)
+    engine.lfoFadeAll(value)
   end}
   params:add_separator()
   
-  params:add{type = "control", id = "env_1_attack", name = "Env-1 Attack", controlspec = specs.ENV_ATTACK, formatter = Formatters.format_secs, action = engine.env1Attack}
-  params:add{type = "control", id = "env_1_decay", name = "Env-1 Decay", controlspec = specs.ENV_DECAY, formatter = Formatters.format_secs, action = engine.env1Decay}
-  params:add{type = "control", id = "env_1_sustain", name = "Env-1 Sustain", controlspec = specs.ENV_SUSTAIN, action = engine.env1Sustain}
-  params:add{type = "control", id = "env_1_release", name = "Env-1 Release", controlspec = specs.ENV_RELEASE, formatter = Formatters.format_secs, action = engine.env1Release}
+  params:add{type = "control", id = "env_1_attack", name = "Env-1 Attack", controlspec = specs.ENV_ATTACK, formatter = Formatters.format_secs, action = engine.env1AttackAll}
+  params:add{type = "control", id = "env_1_decay", name = "Env-1 Decay", controlspec = specs.ENV_DECAY, formatter = Formatters.format_secs, action = engine.env1DecayAll}
+  params:add{type = "control", id = "env_1_sustain", name = "Env-1 Sustain", controlspec = specs.ENV_SUSTAIN, action = engine.env1SustainAll}
+  params:add{type = "control", id = "env_1_release", name = "Env-1 Release", controlspec = specs.ENV_RELEASE, formatter = Formatters.format_secs, action = engine.env1ReleaseAll}
   params:add_separator()
   
-  params:add{type = "control", id = "env_2_attack", name = "Env-2 Attack", controlspec = specs.ENV_ATTACK, formatter = Formatters.format_secs, action = engine.env2Attack}
-  params:add{type = "control", id = "env_2_decay", name = "Env-2 Decay", controlspec = specs.ENV_DECAY, formatter = Formatters.format_secs, action = engine.env2Decay}
-  params:add{type = "control", id = "env_2_sustain", name = "Env-2 Sustain", controlspec = specs.ENV_SUSTAIN, action = engine.env2Sustain}
-  params:add{type = "control", id = "env_2_release", name = "Env-2 Release", controlspec = specs.ENV_RELEASE, formatter = Formatters.format_secs, action = engine.env2Release}
+  params:add{type = "control", id = "env_2_attack", name = "Env-2 Attack", controlspec = specs.ENV_ATTACK, formatter = Formatters.format_secs, action = engine.env2AttackAll}
+  params:add{type = "control", id = "env_2_decay", name = "Env-2 Decay", controlspec = specs.ENV_DECAY, formatter = Formatters.format_secs, action = engine.env2DecayAll}
+  params:add{type = "control", id = "env_2_sustain", name = "Env-2 Sustain", controlspec = specs.ENV_SUSTAIN, action = engine.env2SustainAll}
+  params:add{type = "control", id = "env_2_release", name = "Env-2 Release", controlspec = specs.ENV_RELEASE, formatter = Formatters.format_secs, action = engine.env2ReleaseAll}
   params:add_separator()
   
-  params:add{type = "control", id = "amp", name = "Amp", controlspec = specs.AMP, action = engine.amp}
-  params:add{type = "control", id = "amp_mod", name = "Amp Mod (LFO)", controlspec = specs.AMP_MOD, action = engine.ampMod}
+  params:add{type = "control", id = "amp", name = "Amp", controlspec = specs.AMP, action = engine.ampAll}
+  params:add{type = "control", id = "amp_mod_lfo", name = "Amp Mod (LFO)", controlspec = specs.AMP_MOD_LFO, action = engine.ampModLfoAll}
+  params:add{type = "control", id = "amp_mod_timbre", name = "Amp Mod (Timbre)", controlspec = specs.MOD_TIMBRE_PRESSURE}
+  params:add{type = "control", id = "amp_mod_pressure", name = "Amp Mod (Pressure)", controlspec = specs.MOD_TIMBRE_PRESSURE}
   params:add_separator()
   
   params:add{type = "control", id = "ring_mod_freq", name = "Ring Mod Frequency", controlspec = specs.RING_MOD_FREQ, formatter = Formatters.format_freq, action = engine.ringModFreq}
   params:add{type = "control", id = "ring_mod_fade", name = "Ring Mod Fade", controlspec = specs.RING_MOD_FADE, formatter = format_fade, action = function(value)
     if value < 0 then value = specs.RING_MOD_FADE.minval - 0.00001 + math.abs(value) end
-    engine.ringModFade(value)
+    engine.ringModFadeAll(value)
   end}
-  params:add{type = "control", id = "ring_mod_mix", name = "Ring Mod Mix", controlspec = specs.RING_MOD_MIX, action = engine.ringModMix}
+  params:add{type = "control", id = "ring_mod_mix", name = "Ring Mod Mix", controlspec = specs.RING_MOD_MIX, action = engine.ringModMixAll}
+  params:add{type = "control", id = "ring_mod_mix_mod_timbre", name = "Ring Mod Mix Mod (Timbre)", controlspec = specs.MOD_TIMBRE_PRESSURE}
+  params:add{type = "control", id = "ring_mod_mix_mod_pressure", name = "Ring Mod Mix Mod (Pressure)", controlspec = specs.MOD_TIMBRE_PRESSURE}
   params:add{type = "control", id = "chorus_mix", name = "Chorus Mix", controlspec = specs.CHORUS_MIX, action = engine.chorusMix}
   params:add_separator()
   
@@ -136,6 +143,38 @@ function MollyThePoly.add_params()
   params:add{type = "trigger", id = "create_pad", name = "Create Pad", action = function() MollyThePoly.randomize_params("pad") end}
   params:add{type = "trigger", id = "create_percussion", name = "Create Percussion", action = function() MollyThePoly.randomize_params("percussion") end}
   
+end
+
+function MollyThePoly.set_pitch_bend(voice_id, bend_st)
+  engine.pitchBend(voice_id, MusicUtil.interval_to_ratio(bend_st))
+end
+
+function MollyThePoly.set_pitch_bend_all(bend_st)
+  engine.pitchBendAll(MusicUtil.interval_to_ratio(bend_st))
+end
+
+local function set_timbre_or_pressure(mod_type, voice_id, value)
+  engine.amp(voice_id, util.clamp(params:get("amp") + value * params:get("amp_mod_" .. mod_type) * specs.AMP.maxval, specs.AMP.minval, specs.AMP.maxval))
+end
+
+local function set_timbre_or_pressure(mod_type, voice_id, value)
+  engine.ampAll(util.clamp(params:get("amp") + value * params:get("amp_mod_" .. mod_type) * specs.AMP.maxval, specs.AMP.minval, specs.AMP.maxval))
+end
+
+function MollyThePoly.set_timbre(voice_id, value)
+  set_timbre_or_pressure("timbre", voice_id, value)
+end
+
+function MollyThePoly.set_timbre_all(value)
+  set_timbre_or_pressure_all("timbre", value)
+end
+
+function MollyThePoly.set_pressure(voice_id, value)
+  set_timbre_or_pressure("pressure", voice_id, value)
+end
+
+function MollyThePoly.set_pressure_all(value)
+  set_timbre_or_pressure_all("pressure", value)
 end
 
 function MollyThePoly.randomize_params(sound_type)
@@ -213,7 +252,7 @@ function MollyThePoly.randomize_params(sound_type)
     local amp_max = 0.9
     if math.random() > 0.8 then amp_max = 11 end
     params:set("amp", util.linlin(0, 1, 0.75, amp_max, math.random()))
-    params:set("amp_mod", util.linlin(0, 1, 0, 0.5, math.random()))
+    params:set("amp_mod_lfo", util.linlin(0, 1, 0, 0.5, math.random()))
     
     params:set("ring_mod_fade", util.linlin(0, 1, specs.RING_MOD_FADE.minval * 0.8, specs.RING_MOD_FADE.maxval * 0.3, math.random()))
     if(math.random() > 0.8) then
@@ -260,7 +299,7 @@ function MollyThePoly.randomize_params(sound_type)
     params:set("env_2_release", util.linlin(0, 1, 0.5, specs.ENV_RELEASE.maxval, math.random()))
     
     params:set("amp", util.linlin(0, 1, 0.5, 0.8, math.random()))
-    params:set("amp_mod", math.random())
+    params:set("amp_mod_lfo", math.random())
     
     params:set("ring_mod_fade", util.linlin(0, 1, specs.RING_MOD_FADE.minval, specs.RING_MOD_FADE.maxval, math.random()))
     if(math.random() > 0.8) then
@@ -305,7 +344,7 @@ function MollyThePoly.randomize_params(sound_type)
     local amp_max = 1
     if math.random() > 0.7 then amp_max = 11 end
     params:set("amp", util.linlin(0, 1, 0.75, amp_max, math.random()))
-    params:set("amp_mod", util.linlin(0, 1, 0, 0.2, math.random()))
+    params:set("amp_mod_lfo", util.linlin(0, 1, 0, 0.2, math.random()))
     
     params:set("ring_mod_fade", util.linlin(0, 1, specs.RING_MOD_FADE.minval, 2, math.random()))
     if(math.random() > 0.4) then

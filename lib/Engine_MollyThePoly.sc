@@ -44,10 +44,10 @@ Engine_MollyThePoly : CroneEngine {
 	var env2Decay = 0.3;
 	var env2Sustain = 0.5;
 	var env2Release = 0.5;
-	var ampMod = 0;
+	var amp = 0.5;
+	var ampModLfo = 0;
 	var ringModFade = 0;
 	var ringModMix = 0;
-	var chorusMix = 0;
 
 	*new { arg context, doneCallback;
 		^super.new(context, doneCallback);
@@ -69,7 +69,7 @@ Engine_MollyThePoly : CroneEngine {
 			oscWaveShape, pwMod, pwModSource, freqModLfo, freqModEnv, lastFreq, glide, mainOscLevel, subOscLevel, subOscDetune, noiseLevel,
 			hpFilterCutoff, lpFilterCutoff, lpFilterResonance, lpFilterType, lpFilterCutoffEnvSelect, lpFilterCutoffModEnv, lpFilterCutoffModLfo, lpFilterTracking,
 			lfoFade, env1Attack, env1Decay, env1Sustain, env1Release, env2Attack, env2Decay, env2Sustain, env2Release,
-			ampMod, ringModFade, ringModMix;
+			amp = 0.5, ampModLfo, ringModFade, ringModMix;
 			var i_nyquist = SampleRate.ir * 0.5, i_cFreq = 48.midicps, signal, killEnvelope, controlLag = 0.005,
 			lfo, ringMod, oscArray, freqModRatio, mainOscDriftLfo, subOscDriftLfo, filterCutoffRatio, filterCutoffModRatio,
 			envelope1, envelope2;
@@ -83,6 +83,7 @@ Engine_MollyThePoly : CroneEngine {
 			freq = XLine.kr(start: lastFreq, end: freq, dur: glide + 0.001);
 			freq = Lag.kr(freq * pitchBendRatio, 0.005);
 
+			amp = Lag.kr(amp, controlLag);
 			pwMod = Lag.kr(pwMod, controlLag);
 			mainOscLevel = Lag.kr(mainOscLevel, controlLag);
 			subOscLevel = Lag.kr(subOscLevel, controlLag);
@@ -160,7 +161,7 @@ Engine_MollyThePoly : CroneEngine {
 
 			// Amp
 			signal = signal * envelope2 * killEnvelope;
-			signal = signal * vel * lfo.range(1 - ampMod, 1);
+			signal = signal * vel * lfo.range(1 - ampModLfo, 1) * amp;
 
 			// Ring mod
 			signal = SelectX.ar(ringModMix * 0.5, [signal, signal * ringMod]);
@@ -199,14 +200,13 @@ Engine_MollyThePoly : CroneEngine {
 
 		// Mixer and chorus
 		mixer = SynthDef(\mixer, {
-			arg in, out, amp = 0.5, chorusMix = 0;
+			arg in, out, chorusMix = 0;
 			var signal, chorus, chorusPreProcess, chorusLfo, chorusPreDelay = 0.01, chorusDepth = 0.0053, chorusDelay, controlLag = 0.005;
 
 			// Lag inputs
-			amp = Lag.kr(amp, controlLag);
 			chorusMix = Lag.kr(chorusMix, controlLag);
 
-			signal = In.ar(in, 1) * 0.4 * amp;
+			signal = In.ar(in, 1) * 0.4;
 
 			// Bass boost
 			signal = BLowShelf.ar(signal, freq: 400, rs: 1, db: 2, mul: 1, add: 0);
@@ -233,12 +233,23 @@ Engine_MollyThePoly : CroneEngine {
 
 		}).play(target:context.xg, args: [\in, mixerBus, \out, context.out_b], addAction: \addToTail);
 
+		this.addCommands;
+	}
 
-		// Commands
+	// Commands
 
+	setArgOnVoice {
+		arg voiceId, name, value;
+		var voice = voiceList.detect{arg v; v.id == voiceId};
+		if(voice.notNil, {
+			voice.theSynth.set(name, value);
+		});
+	}
+
+	addCommands {
 		// noteOn(id, freq, vel)
-		this.addCommand(\noteOn, "iff", { arg msg;
-
+		this.addCommand(\noteOn, "iff", {
+			arg msg;
 			var id = msg[1], freq = msg[2], vel = msg[3] ?? 1;
 			var voiceToRemove, newVoice;
 
@@ -298,7 +309,8 @@ Engine_MollyThePoly : CroneEngine {
 					\env2Decay, env2Decay,
 					\env2Sustain, env2Sustain,
 					\env2Release, env2Release,
-					\ampMod, ampMod,
+					\amp, amp,
+					\ampModLfo, ampModLfo,
 					\ringModFade, ringModFade,
 					\ringModMix, ringModMix
 				], target: voiceGroup).onFree({ voiceList.remove(newVoice); }), gate: 1);
@@ -309,7 +321,8 @@ Engine_MollyThePoly : CroneEngine {
 		});
 
 		// noteOff(id)
-		this.addCommand(\noteOff, "i", { arg msg;
+		this.addCommand(\noteOff, "i", {
+			arg msg;
 			var voice = voiceList.detect{arg v; v.id == msg[1]};
 			if(voice.notNil, {
 				voice.theSynth.set(\gate, 0);
@@ -318,13 +331,15 @@ Engine_MollyThePoly : CroneEngine {
 		});
 
 		// noteOffAll()
-		this.addCommand(\noteOffAll, "", { arg msg;
+		this.addCommand(\noteOffAll, "", {
+			arg msg;
 			voiceGroup.set(\gate, 0);
 			voiceList.do({ arg v; v.gate = 0; });
 		});
 
 		// noteKill(id)
-		this.addCommand(\noteKill, "i", { arg msg;
+		this.addCommand(\noteKill, "i", {
+			arg msg;
 			var voice = voiceList.detect{arg v; v.id == msg[1]};
 			if(voice.notNil, {
 				voice.theSynth.set(\gate, 0);
@@ -334,193 +349,361 @@ Engine_MollyThePoly : CroneEngine {
 		});
 
 		// noteKillAll()
-		this.addCommand(\noteKillAll, "", { arg msg;
+		this.addCommand(\noteKillAll, "", {
+			arg msg;
 			voiceGroup.set(\gate, 0);
 			voiceGroup.set(\killGate, 0);
 			voiceList.clear;
 		});
 
 		// pitchBend(id, ratio)
-		this.addCommand(\pitchBend, "if", { arg msg;
-			var voice = voiceList.detect{arg v; v.id == msg[1]};
-			if(voice.notNil, {
-				voice.theSynth.set(\pitchBendRatio, msg[2]);
-			});
+		this.addCommand(\pitchBend, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \pitchBendRatio, msg[2]);
 		});
 
 		// pitchBendAll(ratio)
-		this.addCommand(\pitchBendAll, "f", { arg msg;
+		this.addCommand(\pitchBendAll, "f", {
+			arg msg;
 			pitchBendRatio = msg[1];
 			voiceGroup.set(\pitchBendRatio, pitchBendRatio);
 		});
 
-		this.addCommand(\oscWaveShape, "i", { arg msg;
+		this.addCommand(\oscWaveShape, "ii", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \oscWaveShape, msg[2]);
+		});
+
+		this.addCommand(\oscWaveShapeAll, "i", {
+			arg msg;
 			oscWaveShape = msg[1];
 			voiceGroup.set(\oscWaveShape, oscWaveShape);
 		});
 
-		this.addCommand(\pwMod, "f", { arg msg;
+		// TODO rework this one?
+		this.addCommand(\pwModAll, "f", {
+			arg msg;
 			pwMod = msg[1];
 			voiceGroup.set(\pwMod, pwMod);
 		});
 
-		this.addCommand(\pwModSource, "i", { arg msg;
+		// TODO rework this one?
+		this.addCommand(\pwModSourceAll, "i", {
+			arg msg;
 			pwModSource = msg[1];
 			voiceGroup.set(\pwModSource, pwModSource);
 		});
 
-		this.addCommand(\freqModLfo, "f", { arg msg;
+		this.addCommand(\freqModLfo, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \freqModLfo, msg[2]);
+		});
+
+		this.addCommand(\freqModLfoAll, "f", {
+			arg msg;
 			freqModLfo = msg[1];
 			voiceGroup.set(\freqModLfo, freqModLfo);
 		});
 
-		this.addCommand(\freqModEnv, "f", { arg msg;
+		this.addCommand(\freqModEnv, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \freqModEnv, msg[2]);
+		});
+
+		this.addCommand(\freqModEnvAll, "f", {
+			arg msg;
 			freqModEnv = msg[1];
 			voiceGroup.set(\freqModEnv, freqModEnv);
 		});
 
-		this.addCommand(\glide, "f", { arg msg;
+		this.addCommand(\glideAll, "f", {
+			arg msg;
 			glide = msg[1];
 			voiceGroup.set(\glide, glide);
 		});
 
-		this.addCommand(\mainOscLevel, "f", { arg msg;
+		this.addCommand(\mainOscLevel, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \mainOscLevel, msg[2]);
+		});
+
+		this.addCommand(\mainOscLevelAll, "f", {
+			arg msg;
 			mainOscLevel = msg[1];
 			voiceGroup.set(\mainOscLevel, mainOscLevel);
 		});
 
-		this.addCommand(\subOscLevel, "f", { arg msg;
+		this.addCommand(\subOscLevel, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \subOscLevel, msg[2]);
+		});
+
+		this.addCommand(\subOscLevelAll, "f", {
+			arg msg;
 			subOscLevel = msg[1];
 			voiceGroup.set(\subOscLevel, subOscLevel);
 		});
 
-		this.addCommand(\subOscDetune, "f", { arg msg;
+		this.addCommand(\subOscDetune, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \subOscDetune, msg[2]);
+		});
+
+		this.addCommand(\subOscDetuneAll, "f", {
+			arg msg;
 			subOscDetune = msg[1];
 			voiceGroup.set(\subOscDetune, subOscDetune);
 		});
 
-		this.addCommand(\noiseLevel, "f", { arg msg;
+		this.addCommand(\noiseLevel, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \noiseLevel, msg[2]);
+		});
+
+		this.addCommand(\noiseLevelAll, "f", {
+			arg msg;
 			noiseLevel = msg[1];
 			voiceGroup.set(\noiseLevel, noiseLevel);
 		});
 
-		this.addCommand(\hpFilterCutoff, "f", { arg msg;
+		this.addCommand(\hpFilterCutoff, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \hpFilterCutoff, msg[2]);
+		});
+
+		this.addCommand(\hpFilterCutoffAll, "f", {
+			arg msg;
 			hpFilterCutoff = msg[1];
 			voiceGroup.set(\hpFilterCutoff, hpFilterCutoff);
 		});
 
-		this.addCommand(\lpFilterType, "i", { arg msg;
+		this.addCommand(\lpFilterType, "ii", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lpFilterType, msg[2]);
+		});
+
+		this.addCommand(\lpFilterTypeAll, "i", {
+			arg msg;
 			lpFilterType = msg[1];
 			voiceGroup.set(\lpFilterType, lpFilterType);
 		});
 
-		this.addCommand(\lpFilterCutoff, "f", { arg msg;
+		this.addCommand(\lpFilterCutoff, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lpFilterCutoff, msg[2]);
+		});
+
+		this.addCommand(\lpFilterCutoffAll, "f", {
+			arg msg;
 			lpFilterCutoff = msg[1];
 			voiceGroup.set(\lpFilterCutoff, lpFilterCutoff);
 		});
 
-		this.addCommand(\lpFilterResonance, "f", { arg msg;
+		this.addCommand(\lpFilterResonance, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lpFilterResonance, msg[2]);
+		});
+
+		this.addCommand(\lpFilterResonanceAll, "f", {
+			arg msg;
 			lpFilterResonance = msg[1];
 			voiceGroup.set(\lpFilterResonance, lpFilterResonance);
 		});
 
-		this.addCommand(\lpFilterCutoffEnvSelect, "i", { arg msg;
+		this.addCommand(\lpFilterCutoffEnvSelect, "ii", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lpFilterCutoffEnvSelect, msg[2]);
+		});
+
+		this.addCommand(\lpFilterCutoffEnvSelectAll, "i", {
+			arg msg;
 			lpFilterCutoffEnvSelect = msg[1];
 			voiceGroup.set(\lpFilterCutoffEnvSelect, lpFilterCutoffEnvSelect);
 		});
 
-		this.addCommand(\lpFilterCutoffModEnv, "f", { arg msg;
+		this.addCommand(\lpFilterCutoffModEnv, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lpFilterCutoffModEnv, msg[2]);
+		});
+
+		this.addCommand(\lpFilterCutoffModEnvAll, "f", {
+			arg msg;
 			lpFilterCutoffModEnv = msg[1];
 			voiceGroup.set(\lpFilterCutoffModEnv, lpFilterCutoffModEnv);
 		});
 
-		this.addCommand(\lpFilterCutoffModLfo, "f", { arg msg;
+		this.addCommand(\lpFilterCutoffModLfo, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lpFilterCutoffModLfo, msg[2]);
+		});
+
+		this.addCommand(\lpFilterCutoffModLfoAll, "f", {
+			arg msg;
 			lpFilterCutoffModLfo = msg[1];
 			voiceGroup.set(\lpFilterCutoffModLfo, lpFilterCutoffModLfo);
 		});
 
-		this.addCommand(\lpFilterTracking, "f", { arg msg;
+		this.addCommand(\lpFilterTracking, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lpFilterTracking, msg[2]);
+		});
+
+		this.addCommand(\lpFilterTrackingAll, "f", {
+			arg msg;
 			lpFilterTracking = msg[1];
 			voiceGroup.set(\lpFilterTracking, lpFilterTracking);
 		});
 
-		this.addCommand(\lfoFade, "f", { arg msg;
+		this.addCommand(\lfoFade, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lfoFade, msg[2]);
+		});
+
+		this.addCommand(\lfoFadeAll, "f", {
+			arg msg;
 			lfoFade = msg[1];
 			voiceGroup.set(\lfoFade, lfoFade);
 		});
 
-		this.addCommand(\env1Attack, "f", { arg msg;
+		this.addCommand(\env1AttackAll, "f", {
+			arg msg;
 			env1Attack = msg[1];
 			voiceGroup.set(\env1Attack, env1Attack);
 		});
 
-		this.addCommand(\env1Decay, "f", { arg msg;
+		this.addCommand(\env1Decay, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \env1Decay, msg[2]);
+		});
+
+		this.addCommand(\env1DecayAll, "f", {
+			arg msg;
 			env1Decay = msg[1];
 			voiceGroup.set(\env1Decay, env1Decay);
 		});
 
-		this.addCommand(\env1Sustain, "f", { arg msg;
+		this.addCommand(\env1Sustain, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \env1Sustain, msg[2]);
+		});
+
+		this.addCommand(\env1SustainAll, "f", {
+			arg msg;
 			env1Sustain = msg[1];
 			voiceGroup.set(\env1Sustain, env1Sustain);
 		});
 
-		this.addCommand(\env1Release, "f", { arg msg;
+		this.addCommand(\env1Release, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \env1Release, msg[2]);
+		});
+
+		this.addCommand(\env1ReleaseAll, "f", {
+			arg msg;
 			env1Release = msg[1];
 			voiceGroup.set(\env1Release, env1Release);
 		});
 
-		this.addCommand(\env2Attack, "f", { arg msg;
+		this.addCommand(\env2AttackAll, "f", {
+			arg msg;
 			env2Attack = msg[1];
 			voiceGroup.set(\env2Attack, env2Attack);
 		});
 
-		this.addCommand(\env2Decay, "f", { arg msg;
+		this.addCommand(\env2Decay, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \env2Decay, msg[2]);
+		});
+
+		this.addCommand(\env2DecayAll, "f", {
+			arg msg;
 			env2Decay = msg[1];
 			voiceGroup.set(\env2Decay, env2Decay);
 		});
 
-		this.addCommand(\env2Sustain, "f", { arg msg;
+		this.addCommand(\env2Sustain, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \env2Sustain, msg[2]);
+		});
+
+		this.addCommand(\env2SustainAll, "f", {
+			arg msg;
 			env2Sustain = msg[1];
 			voiceGroup.set(\env2Sustain, env2Sustain);
 		});
 
-		this.addCommand(\env2Release, "f", { arg msg;
+		this.addCommand(\env2Release, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \env2Release, msg[2]);
+		});
+
+		this.addCommand(\env2ReleaseAll, "f", {
+			arg msg;
 			env2Release = msg[1];
 			voiceGroup.set(\env2Release, env2Release);
 		});
 
-		this.addCommand(\ampMod, "f", { arg msg;
-			ampMod = msg[1];
-			voiceGroup.set(\ampMod, ampMod);
+		this.addCommand(\amp, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \amp, msg[2]);
 		});
 
-		this.addCommand(\ringModFade, "f", { arg msg;
+		this.addCommand(\ampAll, "f", {
+			arg msg;
+			amp = msg[1];
+			voiceGroup.set(\amp, amp);
+		});
+
+		this.addCommand(\ampModLfo, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \ampModLfo, msg[2]);
+		});
+
+		this.addCommand(\ampModLfoAll, "f", {
+			arg msg;
+			ampModLfo = msg[1];
+			voiceGroup.set(\ampModLfo, ampModLfo);
+		});
+
+		this.addCommand(\ringModFade, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \ringModFade, msg[2]);
+		});
+
+		this.addCommand(\ringModFadeAll, "f", {
+			arg msg;
 			ringModFade = msg[1];
 			voiceGroup.set(\ringModFade, ringModFade);
 		});
 
-		this.addCommand(\ringModMix, "f", { arg msg;
+		this.addCommand(\ringModMix, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \ringModMix, msg[2]);
+		});
+
+		this.addCommand(\ringModMixAll, "f", {
+			arg msg;
 			ringModMix = msg[1];
 			voiceGroup.set(\ringModMix, ringModMix);
 		});
 
-		this.addCommand(\amp, "f", { arg msg;
-			mixer.set(\amp, msg[1]);
-		});
-
-		this.addCommand(\chorusMix, "f", { arg msg;
+		this.addCommand(\chorusMix, "f", {
+			arg msg;
 			mixer.set(\chorusMix, msg[1]);
 		});
 
-		this.addCommand(\lfoFreq, "f", { arg msg;
+		this.addCommand(\lfoFreq, "f", {
+			arg msg;
 			lfo.set(\lfoFreq, msg[1]);
 		});
 
-		this.addCommand(\lfoWaveShape, "i", { arg msg;
+		this.addCommand(\lfoWaveShape, "i", {
+			arg msg;
 			lfo.set(\lfoWaveShape, msg[1]);
 		});
 
-		this.addCommand(\ringModFreq, "f", { arg msg;
+		this.addCommand(\ringModFreq, "f", {
+			arg msg;
 			lfo.set(\ringModFreq, msg[1]);
 		});
 
