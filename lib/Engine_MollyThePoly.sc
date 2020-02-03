@@ -5,6 +5,7 @@
 Engine_MollyThePoly : CroneEngine {
 
 	classvar maxNumVoices = 10;
+	classvar maxAmp = 11;
 	var voiceGroup;
 	var voiceList;
 	var lfo;
@@ -15,18 +16,35 @@ Engine_MollyThePoly : CroneEngine {
 	var mixerBus;
 
 	var pitchBendRatio = 1;
+	var pressure = 0;
+	var timbre = 0;
 
 	var oscWaveShape = 0;
-	var pwMod = 0;
-	var pwModSource = 0;
+	var pulseWidth = 0;
+	var pulseWidthModEnv = 0;
+	var pulseWidthModLfo = 0;
+	var pulseWidthModPressure = 0;
+	var pulseWidthModTimbre = 0;
 	var freqModLfo = 0;
 	var freqModEnv = 0;
 	var lastFreq = 0;
 	var glide = 0;
 	var mainOscLevel = 1;
+	var mainOscLevelModEnv = 0;
+	var mainOscLevelModLfo = 0;
+	var mainOscLevelModPressure = 0;
+	var mainOscLevelModTimbre = 0;
 	var subOscLevel = 0;
+	var subOscLevelModEnv = 0;
+	var subOscLevelModLfo = 0;
+	var subOscLevelModPressure = 0;
+	var subOscLevelModTimbre = 0;
 	var subOscDetune = 0;
 	var noiseLevel = 0;
+	var noiseLevelModEnv = 0;
+	var noiseLevelModLfo = 0;
+	var noiseLevelModPressure = 0;
+	var noiseLevelModTimbre = 0;
 	var hpFilterCutoff = 10;
 	var lpFilterType = 0;
 	var lpFilterCutoff = 440;
@@ -34,6 +52,8 @@ Engine_MollyThePoly : CroneEngine {
 	var lpFilterCutoffEnvSelect = 0;
 	var lpFilterCutoffModEnv = 0;
 	var lpFilterCutoffModLfo = 0;
+	var lpFilterCutoffModPressure = 0;
+	var lpFilterCutoffModTimbre = 0;
 	var lpFilterTracking = 1;
 	var lfoFade = 0;
 	var env1Attack = 0.01;
@@ -46,8 +66,14 @@ Engine_MollyThePoly : CroneEngine {
 	var env2Release = 0.5;
 	var amp = 0.5;
 	var ampModLfo = 0;
+	var ampModPressure = 0;
+	var ampModTimbre = 0;
 	var ringModFade = 0;
 	var ringModMix = 0;
+	var ringModMixModEnv = 0;
+	var ringModMixModLfo = 0;
+	var ringModMixModPressure = 0;
+	var ringModMixModTimbre = 0;
 
 	*new { arg context, doneCallback;
 		^super.new(context, doneCallback);
@@ -65,11 +91,17 @@ Engine_MollyThePoly : CroneEngine {
 
 		// Synth voice
 		SynthDef(\voice, {
-			arg out, lfoIn, ringModIn, freq = 440, pitchBendRatio = 1, gate = 0, killGate = 1, vel = 1,
-			oscWaveShape, pwMod, pwModSource, freqModLfo, freqModEnv, lastFreq, glide, mainOscLevel, subOscLevel, subOscDetune, noiseLevel,
-			hpFilterCutoff, lpFilterCutoff, lpFilterResonance, lpFilterType, lpFilterCutoffEnvSelect, lpFilterCutoffModEnv, lpFilterCutoffModLfo, lpFilterTracking,
+			arg out, lfoIn, ringModIn, freq = 440, pitchBendRatio = 1, gate = 0, killGate = 1, vel = 1, pressure, timbre,
+			oscWaveShape, pulseWidth, pulseWidthModEnv, pulseWidthModLfo, pulseWidthModPressure, pulseWidthModTimbre,
+			freqModLfo, freqModEnv, lastFreq, glide,
+			mainOscLevel, mainOscLevelModEnv, mainOscLevelModLfo, mainOscLevelModPressure, mainOscLevelModTimbre,
+			subOscLevel, subOscLevelModEnv, subOscLevelModLfo, subOscLevelModPressure, subOscLevelModTimbre, subOscDetune,
+			noiseLevel, noiseLevelModEnv, noiseLevelModLfo, noiseLevelModPressure, noiseLevelModTimbre,
+			hpFilterCutoff, lpFilterCutoff, lpFilterResonance, lpFilterType,
+			lpFilterCutoffEnvSelect, lpFilterCutoffModEnv, lpFilterCutoffModLfo, lpFilterCutoffModPressure, lpFilterCutoffModTimbre, lpFilterTracking,
 			lfoFade, env1Attack, env1Decay, env1Sustain, env1Release, env2Attack, env2Decay, env2Sustain, env2Release,
-			amp = 0.5, ampModLfo, ringModFade, ringModMix;
+			amp = 0.5, ampModLfo, ampModPressure, ampModTimbre,
+			ringModFade, ringModMix, ringModMixModEnv, ringModMixModLfo, ringModMixModPressure, ringModMixModTimbre;
 			var i_nyquist = SampleRate.ir * 0.5, i_cFreq = 48.midicps, signal, killEnvelope, controlLag = 0.005,
 			lfo, ringMod, oscArray, freqModRatio, mainOscDriftLfo, subOscDriftLfo, filterCutoffRatio, filterCutoffModRatio,
 			envelope1, envelope2;
@@ -82,9 +114,10 @@ Engine_MollyThePoly : CroneEngine {
 
 			freq = XLine.kr(start: lastFreq, end: freq, dur: glide + 0.001);
 			freq = Lag.kr(freq * pitchBendRatio, 0.005);
+			pressure = Lag.kr(pressure, controlLag);
+			timbre = Lag.kr(timbre, controlLag);
 
-			amp = Lag.kr(amp, controlLag);
-			pwMod = Lag.kr(pwMod, controlLag);
+			pulseWidth = Lag.kr(pulseWidth, controlLag);
 			mainOscLevel = Lag.kr(mainOscLevel, controlLag);
 			subOscLevel = Lag.kr(subOscLevel, controlLag);
 			subOscDetune = Lag.kr(subOscDetune, controlLag);
@@ -95,6 +128,7 @@ Engine_MollyThePoly : CroneEngine {
 			lpFilterResonance = Lag.kr(lpFilterResonance, controlLag);
 			lpFilterType = Lag.kr(lpFilterType, 0.01);
 
+			amp = Lag.kr(amp, controlLag);
 			ringModMix = Lag.kr(ringModMix, controlLag);
 
 			// Envelopes
@@ -116,19 +150,19 @@ Engine_MollyThePoly : CroneEngine {
 
 			mainOscDriftLfo = LFNoise2.kr(freq: 0.1, mul: 0.001, add: 1);
 
-			pwMod = Select.kr(pwModSource, [lfo.range(0, pwMod), envelope1 * pwMod, pwMod]);
+			pulseWidth = (pulseWidth + (envelope1 * pulseWidthModEnv) + (lfo * pulseWidthModLfo) + (pressure * pulseWidthModPressure) + (timbre * pulseWidthModTimbre)).clip;
 
 			oscArray = [
 				VarSaw.ar(freq * mainOscDriftLfo),
 				Saw.ar(freq * mainOscDriftLfo),
-				Pulse.ar(freq * mainOscDriftLfo, width: 0.5 + (pwMod * 0.49)),
+				Pulse.ar(freq * mainOscDriftLfo, width: 0.5 + (pulseWidth * 0.49)),
 			];
-			signal = Select.ar(oscWaveShape, oscArray) * mainOscLevel;
+			signal = Select.ar(oscWaveShape, oscArray) * (mainOscLevel + (envelope1 * mainOscLevelModEnv) + (lfo * mainOscLevelModLfo) + (pressure * mainOscLevelModPressure) + (timbre * mainOscLevelModTimbre)).clip;
 
 			// Sub osc and noise
 			subOscDriftLfo = LFNoise2.kr(freq: 0.1, mul: 0.0008, add: 1);
-			signal = SelectX.ar(subOscLevel * 0.5, [signal, Pulse.ar(freq * 0.5 * subOscDetune.midiratio * subOscDriftLfo, width: 0.5)]);
-			signal = SelectX.ar(noiseLevel * 0.5, [signal, WhiteNoise.ar()]);
+			signal = SelectX.ar((subOscLevel + (envelope1 * subOscLevelModEnv) + (lfo * subOscLevelModLfo) + (pressure * subOscLevelModPressure) + (timbre * subOscLevelModTimbre)).clip * 0.5, [signal, Pulse.ar(freq * 0.5 * subOscDetune.midiratio * subOscDriftLfo, width: 0.5)]);
+			signal = SelectX.ar((noiseLevel + (envelope1 * noiseLevelModEnv) + (lfo * noiseLevelModLfo) + (pressure * noiseLevelModPressure) + (timbre * noiseLevelModTimbre)).clip * 0.5, [signal, WhiteNoise.ar()]);
 			signal = signal + PinkNoise.ar(0.007);
 
 			// HP Filter
@@ -149,7 +183,7 @@ Engine_MollyThePoly : CroneEngine {
 			lpFilterCutoff = lpFilterCutoff * filterCutoffRatio;
 
 			// Note: Again, would prefer this to be exponential
-			filterCutoffModRatio = ((lfo * lpFilterCutoffModLfo) + ((Select.ar(lpFilterCutoffEnvSelect, [envelope1, envelope2]) * lpFilterCutoffModEnv) * 2));
+			filterCutoffModRatio = (((Select.ar(lpFilterCutoffEnvSelect, [envelope1, envelope2]) * lpFilterCutoffModEnv) + (pressure * lpFilterCutoffModPressure) + (timbre * lpFilterCutoffModTimbre)) * 2) + (lfo * lpFilterCutoffModLfo);
 			filterCutoffModRatio = Select.ar(filterCutoffModRatio >= 0, [
 				filterCutoffModRatio.linlin(-3, 0, 0.08333333333, 1),
 				filterCutoffModRatio.linlin(0, 3, 1, 12)
@@ -161,10 +195,12 @@ Engine_MollyThePoly : CroneEngine {
 
 			// Amp
 			signal = signal * envelope2 * killEnvelope;
-			signal = signal * vel * lfo.range(1 - ampModLfo, 1) * amp;
+			signal = signal * (lfo * ampModLfo).range(1 - ampModLfo, 1);
+			amp = (amp + (((pressure * ampModPressure) + (timbre * ampModTimbre)) * maxAmp)).clip(0, maxAmp);
+			signal = signal * vel * amp;
 
 			// Ring mod
-			signal = SelectX.ar(ringModMix * 0.5, [signal, signal * ringMod]);
+			signal = SelectX.ar((ringModMix + (envelope1 * ringModMixModEnv) + (lfo * ringModMixModLfo) + (pressure * ringModMixModPressure) + (timbre * ringModMixModTimbre)).clip, [signal, signal * ringMod]);
 
 			Out.ar(out, signal);
 		}).add;
@@ -279,19 +315,36 @@ Engine_MollyThePoly : CroneEngine {
 					\ringModIn, ringModBus,
 					\freq, freq,
 					\pitchBendRatio, pitchBendRatio,
+					\pressure, pressure,
+					\timbre, timbre,
 					\gate, 1,
 					\vel, vel.linlin(0, 1, 0.3, 1),
 					\oscWaveShape, oscWaveShape,
-					\pwMod, pwMod,
-					\pwModSource, pwModSource,
+					\pulseWidth, pulseWidth,
+					\pulseWidthModEnv, pulseWidthModEnv,
+					\pulseWidthModLfo, pulseWidthModLfo,
+					\pulseWidthModPressure, pulseWidthModPressure,
+					\pulseWidthModTimbre, pulseWidthModTimbre,
 					\freqModLfo, freqModLfo,
 					\freqModEnv, freqModEnv,
 					\lastFreq, lastFreq,
 					\glide, glide,
 					\mainOscLevel, mainOscLevel,
+					\mainOscLevelModEnv, mainOscLevelModEnv,
+					\mainOscLevelModLfo, mainOscLevelModLfo,
+					\mainOscLevelModPressure, mainOscLevelModPressure,
+					\mainOscLevelModTimbre, mainOscLevelModTimbre,
 					\subOscLevel, subOscLevel,
+					\subOscLevelModEnv, subOscLevelModEnv,
+					\subOscLevelModLfo, subOscLevelModLfo,
+					\subOscLevelModPressure, subOscLevelModPressure,
+					\subOscLevelModTimbre, subOscLevelModTimbre,
 					\subOscDetune, subOscDetune,
 					\noiseLevel, noiseLevel,
+					\noiseLevelModEnv, noiseLevelModEnv,
+					\noiseLevelModLfo, noiseLevelModLfo,
+					\noiseLevelModPressure, noiseLevelModPressure,
+					\noiseLevelModTimbre, noiseLevelModTimbre,
 					\hpFilterCutoff, hpFilterCutoff,
 					\lpFilterType, lpFilterType,
 					\lpFilterCutoff, lpFilterCutoff,
@@ -299,6 +352,8 @@ Engine_MollyThePoly : CroneEngine {
 					\lpFilterCutoffEnvSelect, lpFilterCutoffEnvSelect,
 					\lpFilterCutoffModEnv, lpFilterCutoffModEnv,
 					\lpFilterCutoffModLfo, lpFilterCutoffModLfo,
+					\lpFilterCutoffModPressure, lpFilterCutoffModPressure,
+					\lpFilterCutoffModTimbre, lpFilterCutoffModTimbre,
 					\lpFilterTracking, lpFilterTracking,
 					\lfoFade, lfoFade,
 					\env1Attack, env1Attack,
@@ -311,8 +366,14 @@ Engine_MollyThePoly : CroneEngine {
 					\env2Release, env2Release,
 					\amp, amp,
 					\ampModLfo, ampModLfo,
+					\ampModPressure, ampModPressure,
+					\ampModTimbre, ampModTimbre,
 					\ringModFade, ringModFade,
-					\ringModMix, ringModMix
+					\ringModMix, ringModMix,
+					\ringModMixModEnv, ringModMixModEnv,
+					\ringModMixModLfo, ringModMixModLfo,
+					\ringModMixModPressure, ringModMixModPressure,
+					\ringModMixModTimbre, ringModMixModTimbre,
 				], target: voiceGroup).onFree({ voiceList.remove(newVoice); }), gate: 1);
 
 				voiceList.addFirst(newVoice);
@@ -369,6 +430,32 @@ Engine_MollyThePoly : CroneEngine {
 			voiceGroup.set(\pitchBendRatio, pitchBendRatio);
 		});
 
+		// pressure(id, pressure)
+		this.addCommand(\pressure, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \pressure, msg[2]);
+		});
+
+		// pressureAll(pressure)
+		this.addCommand(\pressureAll, "f", {
+			arg msg;
+			pressure = msg[1];
+			voiceGroup.set(\pressure, pressure);
+		});
+
+		// timbre(id, timbre)
+		this.addCommand(\timbre, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \timbre, msg[2]);
+		});
+
+		// timbreAll(timbre)
+		this.addCommand(\timbreAll, "f", {
+			arg msg;
+			timbre = msg[1];
+			voiceGroup.set(\timbre, timbre);
+		});
+
 		this.addCommand(\oscWaveShape, "ii", {
 			arg msg;
 			this.setArgOnVoice(msg[1], \oscWaveShape, msg[2]);
@@ -380,18 +467,59 @@ Engine_MollyThePoly : CroneEngine {
 			voiceGroup.set(\oscWaveShape, oscWaveShape);
 		});
 
-		// TODO rework this one?
-		this.addCommand(\pwModAll, "f", {
+		this.addCommand(\pulseWidth, "if", {
 			arg msg;
-			pwMod = msg[1];
-			voiceGroup.set(\pwMod, pwMod);
+			this.setArgOnVoice(msg[1], \pulseWidth, msg[2]);
 		});
 
-		// TODO rework this one?
-		this.addCommand(\pwModSourceAll, "i", {
+		this.addCommand(\pulseWidthAll, "f", {
 			arg msg;
-			pwModSource = msg[1];
-			voiceGroup.set(\pwModSource, pwModSource);
+			pulseWidth = msg[1];
+			voiceGroup.set(\pulseWidth, pulseWidth);
+		});
+
+		this.addCommand(\pulseWidthModEnv, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \pulseWidthModEnv, msg[2]);
+		});
+
+		this.addCommand(\pulseWidthModEnvAll, "f", {
+			arg msg;
+			pulseWidthModEnv = msg[1];
+			voiceGroup.set(\pulseWidthModEnv, pulseWidthModEnv);
+		});
+
+		this.addCommand(\pulseWidthModLfo, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \pulseWidthModLfo, msg[2]);
+		});
+
+		this.addCommand(\pulseWidthModLfoAll, "f", {
+			arg msg;
+			pulseWidthModLfo = msg[1];
+			voiceGroup.set(\pulseWidthModLfo, pulseWidthModLfo);
+		});
+
+		this.addCommand(\pulseWidthModPressure, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \pulseWidthModPressure, msg[2]);
+		});
+
+		this.addCommand(\pulseWidthModPressureAll, "f", {
+			arg msg;
+			pulseWidthModPressure = msg[1];
+			voiceGroup.set(\pulseWidthModPressure, \pulseWidthModPressure);
+		});
+
+		this.addCommand(\pulseWidthModTimbre, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \pulseWidthModTimbre, msg[2]);
+		});
+
+		this.addCommand(\pulseWidthModTimbreAll, "f", {
+			arg msg;
+			pulseWidthModTimbre = msg[1];
+			voiceGroup.set(\pulseWidthModTimbre, pulseWidthModTimbre);
 		});
 
 		this.addCommand(\freqModLfo, "if", {
@@ -433,6 +561,50 @@ Engine_MollyThePoly : CroneEngine {
 			voiceGroup.set(\mainOscLevel, mainOscLevel);
 		});
 
+		this.addCommand(\mainOscLevelModEnv, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \mainOscLevelModEnv, msg[2]);
+		});
+
+		this.addCommand(\mainOscLevelModEnvAll, "f", {
+			arg msg;
+			mainOscLevelModEnv = msg[1];
+			voiceGroup.set(\mainOscLevelModEnv, mainOscLevelModEnv);
+		});
+
+		this.addCommand(\mainOscLevelModLfo, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \mainOscLevelModLfo, msg[2]);
+		});
+
+		this.addCommand(\mainOscLevelModLfoAll, "f", {
+			arg msg;
+			mainOscLevelModLfo = msg[1];
+			voiceGroup.set(\mainOscLevelModLfo, mainOscLevelModLfo);
+		});
+
+		this.addCommand(\mainOscLevelModPressure, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \mainOscLevelModPressure, msg[2]);
+		});
+
+		this.addCommand(\mainOscLevelModPressureAll, "f", {
+			arg msg;
+			mainOscLevelModPressure = msg[1];
+			voiceGroup.set(\mainOscLevelModPressure, mainOscLevelModPressure);
+		});
+
+		this.addCommand(\mainOscLevelModTimbre, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \mainOscLevelModTimbre, msg[2]);
+		});
+
+		this.addCommand(\mainOscLevelModTimbreAll, "f", {
+			arg msg;
+			mainOscLevelModTimbre = msg[1];
+			voiceGroup.set(\mainOscLevelModTimbre, mainOscLevelModTimbre);
+		});
+
 		this.addCommand(\subOscLevel, "if", {
 			arg msg;
 			this.setArgOnVoice(msg[1], \subOscLevel, msg[2]);
@@ -442,6 +614,50 @@ Engine_MollyThePoly : CroneEngine {
 			arg msg;
 			subOscLevel = msg[1];
 			voiceGroup.set(\subOscLevel, subOscLevel);
+		});
+
+		this.addCommand(\subOscLevelModEnv, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \subOscLevelModEnv, msg[2]);
+		});
+
+		this.addCommand(\subOscLevelModEnvAll, "f", {
+			arg msg;
+			subOscLevelModEnv = msg[1];
+			voiceGroup.set(\subOscLevelModEnv, subOscLevelModEnv);
+		});
+
+		this.addCommand(\subOscLevelModLfo, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \subOscLevelModLfo, msg[2]);
+		});
+
+		this.addCommand(\subOscLevelModLfoAll, "f", {
+			arg msg;
+			subOscLevelModLfo = msg[1];
+			voiceGroup.set(\subOscLevelModLfo, subOscLevelModLfo);
+		});
+
+		this.addCommand(\subOscLevelModPressure, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \subOscLevelModPressure, msg[2]);
+		});
+
+		this.addCommand(\subOscLevelModPressureAll, "f", {
+			arg msg;
+			subOscLevelModPressure = msg[1];
+			voiceGroup.set(\subOscLevelModPressure, subOscLevelModPressure);
+		});
+
+		this.addCommand(\subOscLevelModTimbre, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \subOscLevelModTimbre, msg[2]);
+		});
+
+		this.addCommand(\subOscLevelModTimbreAll, "f", {
+			arg msg;
+			subOscLevelModTimbre = msg[1];
+			voiceGroup.set(\subOscLevelModTimbre, subOscLevelModTimbre);
 		});
 
 		this.addCommand(\subOscDetune, "if", {
@@ -464,6 +680,50 @@ Engine_MollyThePoly : CroneEngine {
 			arg msg;
 			noiseLevel = msg[1];
 			voiceGroup.set(\noiseLevel, noiseLevel);
+		});
+
+		this.addCommand(\noiseLevelModEnv, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \noiseLevelModEnv, msg[2]);
+		});
+
+		this.addCommand(\noiseLevelModEnvAll, "f", {
+			arg msg;
+			noiseLevelModEnv = msg[1];
+			voiceGroup.set(\noiseLevelModEnv, noiseLevelModEnv);
+		});
+
+		this.addCommand(\noiseLevelModLfo, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \noiseLevelModLfo, msg[2]);
+		});
+
+		this.addCommand(\noiseLevelModLfoAll, "f", {
+			arg msg;
+			noiseLevelModLfo = msg[1];
+			voiceGroup.set(\noiseLevelModLfo, noiseLevelModLfo);
+		});
+
+		this.addCommand(\noiseLevelModPressure, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \noiseLevelModPressure, msg[2]);
+		});
+
+		this.addCommand(\noiseLevelModPressureAll, "f", {
+			arg msg;
+			noiseLevelModPressure = msg[1];
+			voiceGroup.set(\noiseLevelModPressure, noiseLevelModPressure);
+		});
+
+		this.addCommand(\noiseLevelModTimbre, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \noiseLevelModTimbre, msg[2]);
+		});
+
+		this.addCommand(\noiseLevelModTimbreAll, "f", {
+			arg msg;
+			noiseLevelModTimbre = msg[1];
+			voiceGroup.set(\noiseLevelModTimbre, noiseLevelModTimbre);
 		});
 
 		this.addCommand(\hpFilterCutoff, "if", {
@@ -541,6 +801,28 @@ Engine_MollyThePoly : CroneEngine {
 			arg msg;
 			lpFilterCutoffModLfo = msg[1];
 			voiceGroup.set(\lpFilterCutoffModLfo, lpFilterCutoffModLfo);
+		});
+
+		this.addCommand(\lpFilterCutoffModPressure, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lpFilterCutoffModPressure, msg[2]);
+		});
+
+		this.addCommand(\lpFilterCutoffModPressureAll, "f", {
+			arg msg;
+			lpFilterCutoffModPressure = msg[1];
+			voiceGroup.set(\lpFilterCutoffModPressure, lpFilterCutoffModPressure);
+		});
+
+		this.addCommand(\lpFilterCutoffModTimbre, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lpFilterCutoffModTimbre, msg[2]);
+		});
+
+		this.addCommand(\lpFilterCutoffModTimbreAll, "f", {
+			arg msg;
+			lpFilterCutoffModTimbre = msg[1];
+			voiceGroup.set(\lpFilterCutoffModTimbre, lpFilterCutoffModTimbre);
 		});
 
 		this.addCommand(\lpFilterTracking, "if", {
@@ -665,6 +947,28 @@ Engine_MollyThePoly : CroneEngine {
 			voiceGroup.set(\ampModLfo, ampModLfo);
 		});
 
+		this.addCommand(\ampModPressure, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \ampModPressure, msg[2]);
+		});
+
+		this.addCommand(\ampModPressureAll, "f", {
+			arg msg;
+			ampModPressure = msg[1];
+			voiceGroup.set(\ampModPressure, ampModPressure);
+		});
+
+		this.addCommand(\ampModTimbre, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \ampModTimbre, msg[2]);
+		});
+
+		this.addCommand(\ampModTimbreAll, "f", {
+			arg msg;
+			ampModTimbre = msg[1];
+			voiceGroup.set(\ampModTimbre, ampModTimbre);
+		});
+
 		this.addCommand(\ringModFade, "if", {
 			arg msg;
 			this.setArgOnVoice(msg[1], \ringModFade, msg[2]);
@@ -685,6 +989,50 @@ Engine_MollyThePoly : CroneEngine {
 			arg msg;
 			ringModMix = msg[1];
 			voiceGroup.set(\ringModMix, ringModMix);
+		});
+
+		this.addCommand(\ringModMixModEnv, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \ringModMixModEnv, msg[2]);
+		});
+
+		this.addCommand(\ringModMixModEnvAll, "f", {
+			arg msg;
+			ringModMixModEnv = msg[1];
+			voiceGroup.set(\ringModMixModEnv, ringModMixModEnv);
+		});
+
+		this.addCommand(\ringModMixModLfo, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \ringModMixModLfo, msg[2]);
+		});
+
+		this.addCommand(\ringModMixModLfoAll, "f", {
+			arg msg;
+			ringModMixModLfo = msg[1];
+			voiceGroup.set(\ringModMixModLfo, ringModMixModLfo);
+		});
+
+		this.addCommand(\ringModMixModPressure, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \ringModMixModPressure, msg[2]);
+		});
+
+		this.addCommand(\ringModMixModPressureAll, "f", {
+			arg msg;
+			ringModMixModPressure = msg[1];
+			voiceGroup.set(\ringModMixModPressure, ringModMixModPressure);
+		});
+
+		this.addCommand(\ringModMixModTimbre, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \ringModMixModTimbre, msg[2]);
+		});
+
+		this.addCommand(\ringModMixModTimbreAll, "f", {
+			arg msg;
+			ringModMixModTimbre = msg[1];
+			voiceGroup.set(\ringModMixModTimbre, ringModMixModTimbre);
 		});
 
 		this.addCommand(\chorusMix, "f", {
