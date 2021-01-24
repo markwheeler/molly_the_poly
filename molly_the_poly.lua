@@ -16,6 +16,7 @@ engine.name = "MollyThePoly"
 
 local SCREEN_FRAMERATE = 15
 local screen_dirty = true
+local mpe_mode = false;
 
 local midi_in_device
 local grid_device
@@ -69,13 +70,13 @@ local function randomize()
   add_explosion(selected_planet_id, PLANET_RADIUS)
 end
 
-local function note_on(note_num, vel)
-  engine.noteOn(note_num, MusicUtil.note_num_to_freq(note_num), vel)
+local function note_on(note_id, note_num, vel)
+  engine.noteOn(note_id, MusicUtil.note_num_to_freq(note_num), vel)
   add_star(note_num)
 end
 
-local function note_off(note_num)
-  engine.noteOff(note_num)
+local function note_off(note_id, note_num)
+  engine.noteOff(note_id)
   remove_star(note_num)
 end
 
@@ -89,16 +90,16 @@ local function note_kill_all()
   remove_all_stars()
 end
 
-local function set_pressure(note_num, pressure)
-  engine.pressure(note_num, pressure)
+local function set_pressure(note_id, pressure)
+  engine.pressure(note_id, pressure)
 end
 
 local function set_pressure_all(pressure)
   engine.pressureAll(pressure)
 end
 
-local function set_timbre(note_num, timbre)
-  engine.timbre(note_num, timbre)
+local function set_timbre(note_id, timbre)
+  engine.timbre(note_id, timbre)
 end
 
 local function set_timbre_all(timbre)
@@ -155,36 +156,59 @@ local function midi_event(data)
   
   local msg = midi.to_msg(data)
   local channel_param = params:get("midi_channel")
-  
+
+  if channel_param == 18 then
+    channel_param = 1
+    mpe_mode = true
+  end
+
   if channel_param == 1 or (channel_param > 1 and msg.ch == channel_param - 1) then
     
     -- Note off
     if msg.type == "note_off" then
-      note_off(msg.note)
+      if mpe_mode then
+        note_off(msg.ch, msg.note)
+      else
+        note_off(msg.note, msg.note)
+      end
     
     -- Note on
     elseif msg.type == "note_on" then
-      note_on(msg.note, msg.vel / 127)
+      if mpe_mode then
+        note_on(msg.ch, msg.note, msg.vel / 127)
+      else
+        note_on(msg.note, msg.note, msg.vel / 127)
+      end
       
     -- Key pressure
     elseif msg.type == "key_pressure" then
-      set_pressure(msg.note, msg.val / 127)
+      set_pressure(msg.note, msg.note, msg.val / 127)
       
     -- Channel pressure
     elseif msg.type == "channel_pressure" then
-      set_pressure_all(msg.val / 127)
+      if mpe_mode then
+        set_pressure(msg.ch, msg.val / 127)
+      else
+        set_pressure_all(msg.val / 127)
+      end
       
     -- Pitch bend
     elseif msg.type == "pitchbend" then
       local bend_st = (util.round(msg.val / 2)) / 8192 * 2 -1 -- Convert to -1 to 1
       local bend_range = params:get("bend_range")
-      set_pitch_bend_all(bend_st * bend_range)
+      if mpe_mode then
+        set_pitch_bend(msg.ch, bend_st * bend_range)
+      else
+        set_pitch_bend_all(bend_st * bend_range)
+      end
       
     -- CC
     elseif msg.type == "cc" then
       -- Mod wheel
       if msg.cc == 1 then
         set_timbre_all(msg.val / 127)
+      elseif msg.cc == 74 and mpe_mode then
+        set_timbre(msg.ch, msg.val / 127)
       end
       
     end
@@ -198,10 +222,10 @@ local function grid_key(x, y, z)
   local note_num = util.clamp(((7 - y) * 5) + x + 33, 0, 127)
   
   if z == 1 then
-    note_on(note_num, 0.8)
+    note_on(note_num, note_num, 0.8)
     grid_device:led(x, y, 15)
   else
-    note_off(note_num)
+    note_off(note_num, note_num)
     grid_device:led(x, y, 0)
   end
   grid_device:refresh()
@@ -267,6 +291,7 @@ function init()
   
   local channels = {"All"}
   for i = 1, 16 do table.insert(channels, i) end
+  table.insert(channels, "MPE")
   params:add{type = "option", id = "midi_channel", name = "MIDI Channel", options = channels}
 
   params:add{type = "number", id = "bend_range", name = "Pitch Bend Range", min = 1, max = 48, default = 2}
