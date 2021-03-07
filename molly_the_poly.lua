@@ -1,5 +1,5 @@
 -- Molly the Poly
--- 1.1.0 @markeats
+-- 1.2.0 @markeats
 -- llllllll.co/t/molly-the-poly/
 --
 -- MIDI or grid controlled classic
