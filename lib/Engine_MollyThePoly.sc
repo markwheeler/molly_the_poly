@@ -759,17 +759,6 @@ Engine_MollyThePoly : CroneEngine {
 			voiceGroup.set(\lpFilterCutoff, lpFilterCutoff);
 		});
 
-		this.addCommand(\lpFilterResonance, "if", {
-			arg msg;
-			this.setArgOnVoice(msg[1], \lpFilterResonance, msg[2]);
-		});
-
-		this.addCommand(\lpFilterResonanceAll, "f", {
-			arg msg;
-			lpFilterResonance = msg[1];
-			voiceGroup.set(\lpFilterResonance, lpFilterResonance);
-		});
-
 		this.addCommand(\lpFilterCutoffEnvSelect, "ii", {
 			arg msg;
 			this.setArgOnVoice(msg[1], \lpFilterCutoffEnvSelect, msg[2]);
@@ -823,6 +812,17 @@ Engine_MollyThePoly : CroneEngine {
 			arg msg;
 			lpFilterCutoffModTimbre = msg[1];
 			voiceGroup.set(\lpFilterCutoffModTimbre, lpFilterCutoffModTimbre);
+		});
+
+		this.addCommand(\lpFilterResonance, "if", {
+			arg msg;
+			this.setArgOnVoice(msg[1], \lpFilterResonance, msg[2]);
+		});
+
+		this.addCommand(\lpFilterResonanceAll, "f", {
+			arg msg;
+			lpFilterResonance = msg[1];
+			voiceGroup.set(\lpFilterResonance, lpFilterResonance);
 		});
 
 		this.addCommand(\lpFilterTracking, "if", {
