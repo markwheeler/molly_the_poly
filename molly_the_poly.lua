@@ -1,5 +1,5 @@
 -- Molly the Poly
--- 1.2.1 @markeats
+-- 1.2.2 @markeats
 -- llllllll.co/t/molly-the-poly/
 --
 -- MIDI or grid controlled classic
@@ -219,7 +219,7 @@ end
 
 -- Grid input
 local function grid_key(x, y, z)
-  local note_num = util.clamp(((grid_device.device.rows - 1 - y) * 5) + x + 33, 0, 127)
+  local note_num = util.clamp(((grid_rows - 1 - y) * 5) + x + 33, 0, 127)
   
   if z == 1 then
     note_on(note_num, note_num, 0.8)
@@ -280,7 +280,8 @@ function init()
   
   grid_device = grid.connect(1)
   grid_device.key = grid_key
-  
+  grid_rows = grid_device.rows and grid_device.rows or 8 
+
   -- Add params
   
   params:add{type = "number", id = "midi_device", name = "MIDI Device", min = 1, max = 4, default = 1, action = function(value)
