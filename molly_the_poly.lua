@@ -5,8 +5,8 @@
 -- MIDI or grid controlled classic
 -- polysynth with patch creator.
 --
--- E1 : Choose a patch planet
--- E2 : Create a sound
+-- E2 : Choose a patch planet
+-- E3 : Create a sound
 --
 
 local MusicUtil = require "musicutil"
